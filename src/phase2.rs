@@ -1,4 +1,4 @@
-use crate::config::{FAN_IN_FACTOR, READ_BUFFER_BYTES, U64_BYTES};
+use crate::config::{READ_BUFFER_BYTES, U64_BYTES};
 use crate::io::open_run_writer;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
@@ -83,11 +83,17 @@ fn merge_batch(run_paths: &[PathBuf], output_path: &Path) -> io::Result<u64> {
 	Ok(output_bytes)
 }
 
-fn merge_pass(run_paths: &[PathBuf], output_dir: &Path, output_path: Option<&Path>, pass_index: usize) -> io::Result<Vec<PathBuf>> {
+fn merge_pass(
+	run_paths: &[PathBuf],
+	output_dir: &Path,
+	output_path: Option<&Path>,
+	pass_index: usize,
+	fan_in_factor: usize,
+) -> io::Result<Vec<PathBuf>> {
 	let mut next_runs = Vec::new();
-	for (batch_index, batch) in run_paths.chunks(FAN_IN_FACTOR).enumerate() {
+	for (batch_index, batch) in run_paths.chunks(fan_in_factor).enumerate() {
 		let target_path = match output_path {
-			Some(final_output) if run_paths.len() <= FAN_IN_FACTOR => final_output.to_path_buf(),
+			Some(final_output) if run_paths.len() <= fan_in_factor => final_output.to_path_buf(),
 			_ => output_dir.join(format!("merge_{pass_index:05}_{batch_index:05}.bin")),
 		};
 
@@ -105,11 +111,22 @@ fn merge_pass(run_paths: &[PathBuf], output_dir: &Path, output_path: Option<&Pat
 	Ok(next_runs)
 }
 
-pub fn merge_sorted_runs(mut run_paths: Vec<PathBuf>, work_dir: &Path, output_path: &Path) -> io::Result<MergeStats> {
+pub fn merge_sorted_runs(
+	mut run_paths: Vec<PathBuf>,
+	work_dir: &Path,
+	output_path: &Path,
+	fan_in_factor: usize,
+) -> io::Result<MergeStats> {
 	if run_paths.is_empty() {
 		return Err(io::Error::new(
 			io::ErrorKind::InvalidInput,
 			"phase 2 requires at least one run file",
+		));
+	}
+	if fan_in_factor < 2 {
+		return Err(io::Error::new(
+			io::ErrorKind::InvalidInput,
+			"fan_in_factor must be at least 2",
 		));
 	}
 
@@ -136,7 +153,7 @@ pub fn merge_sorted_runs(mut run_paths: Vec<PathBuf>, work_dir: &Path, output_pa
 	}
 
 	while run_paths.len() > 1 {
-		if run_paths.len() <= FAN_IN_FACTOR {
+		if run_paths.len() <= fan_in_factor {
 			merge_batch(&run_paths, output_path)?;
 			for path in &run_paths {
 				let _ = std::fs::remove_file(path);
@@ -149,7 +166,7 @@ pub fn merge_sorted_runs(mut run_paths: Vec<PathBuf>, work_dir: &Path, output_pa
 			});
 		}
 
-		run_paths = merge_pass(&run_paths, work_dir, None, pass_index)?;
+		run_paths = merge_pass(&run_paths, work_dir, None, pass_index, fan_in_factor)?;
 		pass_index += 1;
 	}
 
