@@ -11,23 +11,12 @@ pub struct Phase1Stats {
 	pub input_bytes: u64,
 }
 
-fn spill_run(run_dir: &Path, run_index: usize, chunk: &mut Vec<u64>, thread_count: usize) -> io::Result<PathBuf> {
+pub fn build_sorted_runs(input_path: &Path, run_dir: &Path, thread_count: usize) -> io::Result<Phase1Stats> {
+	std::fs::create_dir_all(run_dir)?;
 	let pool = rayon::ThreadPoolBuilder::new()
 		.num_threads(thread_count)
 		.build()
 		.map_err(|err| io::Error::new(io::ErrorKind::Other, format!("failed to build Rayon thread pool: {err}")))?;
-	pool.install(|| chunk.par_sort_unstable());
-
-	let run_path = run_dir.join(format!("run_{run_index:05}.bin"));
-	let mut writer = open_run_writer(&run_path)?;
-	write_u64_run(&mut writer, chunk)?;
-	chunk.clear();
-
-	Ok(run_path)
-}
-
-pub fn build_sorted_runs(input_path: &Path, run_dir: &Path, thread_count: usize) -> io::Result<Phase1Stats> {
-	std::fs::create_dir_all(run_dir)?;
 
 	let input_file = File::open(input_path)?;
 	let input_size = input_file.metadata()?.len();
@@ -56,14 +45,14 @@ pub fn build_sorted_runs(input_path: &Path, run_dir: &Path, thread_count: usize)
 			chunk.push(value);
 
 			if chunk.len() == max_chunk_values() {
-				run_paths.push(spill_run(run_dir, run_index, &mut chunk, thread_count)?);
+				run_paths.push(spill_run_with_pool(run_dir, run_index, &mut chunk, &pool)?);
 				run_index += 1;
 			}
 		}
 	}
 
 	if !chunk.is_empty() {
-		run_paths.push(spill_run(run_dir, run_index, &mut chunk, thread_count)?);
+		run_paths.push(spill_run_with_pool(run_dir, run_index, &mut chunk, &pool)?);
 	}
 
 	Ok(Phase1Stats {
@@ -71,4 +60,20 @@ pub fn build_sorted_runs(input_path: &Path, run_dir: &Path, thread_count: usize)
 		elapsed_seconds: start.elapsed().as_secs_f64(),
 		input_bytes: input_size,
 	})
+}
+
+fn spill_run_with_pool(
+	run_dir: &Path,
+	run_index: usize,
+	chunk: &mut Vec<u64>,
+	pool: &rayon::ThreadPool,
+) -> io::Result<PathBuf> {
+	pool.install(|| chunk.par_sort_unstable());
+
+	let run_path = run_dir.join(format!("run_{run_index:05}.bin"));
+	let mut writer = open_run_writer(&run_path)?;
+	write_u64_run(&mut writer, chunk)?;
+	chunk.clear();
+
+	Ok(run_path)
 }

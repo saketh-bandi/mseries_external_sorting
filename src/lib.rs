@@ -1,4 +1,5 @@
 pub mod config;
+pub mod dataset;
 pub mod inspect;
 pub mod io;
 pub mod phase1;

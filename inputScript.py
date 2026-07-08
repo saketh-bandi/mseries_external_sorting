@@ -7,31 +7,51 @@ from pathlib import Path
 
 
 U64_SIZE = 8
-BLOCK_SIZE_BYTES = 1 << 20
+PAGE_SIZE_BYTES = 16 * 1024
+WRITE_BLOCK_BYTES = PAGE_SIZE_BYTES * 64
 DEFAULT_SIZE_MB = 100
 DEFAULT_PREVIEW_COUNT = 10
 DEFAULT_SEED = None
+DEFAULT_DISTRIBUTION = "random"
 
 
-def generate_u64_file(output_path: Path, size_bytes: int, seed: int | None = DEFAULT_SEED) -> None:
+def generate_u64_file(
+	output_path: Path,
+	size_bytes: int,
+	distribution: str = DEFAULT_DISTRIBUTION,
+	seed: int | None = DEFAULT_SEED,
+) -> None:
 	if size_bytes % U64_SIZE != 0:
 		raise ValueError("size_bytes must be a multiple of 8")
+	if WRITE_BLOCK_BYTES % PAGE_SIZE_BYTES != 0:
+		raise ValueError("write block size must be a multiple of the page size")
 
 	value_count = size_bytes // U64_SIZE
-	values_per_block = BLOCK_SIZE_BYTES // U64_SIZE
+	values_per_block = WRITE_BLOCK_BYTES // U64_SIZE
 	rng = random.Random(seed)
 	packer = struct.Struct("<Q")
+	if distribution not in {"random", "ascending", "descending"}:
+		raise ValueError("distribution must be one of: random, ascending, descending")
 
 	output_path.parent.mkdir(parents=True, exist_ok=True)
 
 	with output_path.open("wb") as file_handle:
 		remaining = value_count
+		current_value = 1
 		while remaining > 0:
 			block_value_count = min(values_per_block, remaining)
 			buffer = bytearray(block_value_count * U64_SIZE)
 
 			for index in range(block_value_count):
-				packer.pack_into(buffer, index * U64_SIZE, rng.getrandbits(64))
+				if distribution == "random":
+					value = rng.getrandbits(64)
+				elif distribution == "ascending":
+					value = current_value
+					current_value += 1
+				else:
+					value = value_count - current_value + 1
+					current_value += 1
+				packer.pack_into(buffer, index * U64_SIZE, value)
 
 			file_handle.write(buffer)
 			remaining -= block_value_count
@@ -118,6 +138,12 @@ def build_parser() -> argparse.ArgumentParser:
 		help="Optional RNG seed for repeatable output.",
 	)
 	parser.add_argument(
+		"--distribution",
+		choices=["random", "ascending", "descending"],
+		default=DEFAULT_DISTRIBUTION,
+		help="Binary data pattern to generate.",
+	)
+	parser.add_argument(
 		"--preview-count",
 		type=int,
 		default=DEFAULT_PREVIEW_COUNT,
@@ -144,7 +170,7 @@ def main() -> None:
 	file_size_bytes = args.size_mb * 1024 * 1024
 
 	if not args.preview_only:
-		generate_u64_file(args.output, file_size_bytes, seed=args.seed)
+		generate_u64_file(args.output, file_size_bytes, distribution=args.distribution, seed=args.seed)
 
 	first_values, last_values = preview_u64_file(args.output, count=args.preview_count)
 	sorted_ok = None
@@ -155,6 +181,7 @@ def main() -> None:
 
 	print(f"file: {args.output}")
 	print(f"size bytes: {args.output.stat().st_size}")
+	print(f"distribution: {args.distribution}")
 	print(f"u64 count: {args.output.stat().st_size // U64_SIZE}")
 	print(f"first {len(first_values)}: {format_values(first_values)}")
 	print(f"last {len(last_values)}: {format_values(last_values)}")

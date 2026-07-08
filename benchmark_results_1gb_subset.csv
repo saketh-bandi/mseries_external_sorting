@@ -1,0 +1,4 @@
+size_mb,distribution,thread_count,fan_in_factor,phase1_seconds,phase2_seconds,total_seconds,phase1_throughput_mb_s,phase2_throughput_mb_s,overall_throughput_mb_s,runs_written,merge_passes,input_bytes,output_bytes
+1024,random,6,8,17.602815,58.109507,75.712649,58.17,17.62,27.05,54,2,1073741824,1073741824
+1024,random,6,16,17.611963,57.905604,75.517831,58.14,17.68,27.12,54,2,1073741824,1073741824
+1024,random,8,8,15.982745,57.174887,73.157886,64.07,17.91,27.99,54,2,1073741824,1073741824
