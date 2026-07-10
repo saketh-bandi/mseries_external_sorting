@@ -30,22 +30,22 @@ sorted) data ∼ 75%</span> speedup compared
 to random distribution), but Phase 2 takes up most of the total runtime
 regardless of distribution.
 
-# Main Takeaways {#main-takeaways .unnumbered}
+# Main Takeaways 
 
-## 1. Performance Ceiling (CPU Cores) {#performance-ceiling-cpu-cores .unnumbered}
+## 1. Performance Ceiling (CPU Cores)
 
 I looked into my Mac's hardware and noticed my CPU had 10 cores (4 main
 performance cores). I wanted to see if using all 10 cores would make
-sorting twice as fast. Going from 1 $\rightarrow$ 4 threads gave a
+sorting twice as fast. Going from 1 -> 4 threads gave a
 relatively big speedup (14.6%) because it utilized the performance
-cores. However, the jump from 4 $\rightarrow$ 10 threads only gave a
+cores. However, the jump from 4 -> 10 threads only gave a
 4.3% speedup. The performance cores likely end up waiting on the slower
 efficiency cores during Phase 1 when the CPU is sorting the arrays in
 RAM, so more cores had diminishing returns.
 
-## 2. The Distribution Matters (Phase 1 vs Phase 2) {#the-distribution-matters-phase-1-vs-phase-2 .unnumbered}
+## 2. The Distribution Matters (Phase 1 vs Phase 2) 
 
-Sorted/Reverse sorted data made Phase 1 run $\sim 75\%$ faster because
+Sorted/Reverse sorted data made Phase 1 runs 75% faster because
 of CPU branch prediction. Phase 2 runtime stayed relatively steady
 across all distribution types.
 
@@ -57,7 +57,7 @@ across all distribution types.
        10            16              98.48%
         8            16              97.05%
 
-## 3. Peak Speed {#peak-speed .unnumbered}
+## 3. Peak Speed 
 
 The fastest performance of the external sorting engine was 517 MB/s.
 
