@@ -1,18 +1,67 @@
-External Sorting Engine 
+# What I Built 
 
-External Sorting Engine built from scratch in Rust, designed to optimize disk I/O throughput and parallel computing on Apple M5 architecture. 
+I built an external sorter in Rust to sort datasets too big to fit in
+RAM. For context, my Mac's CPU has 10 cores (4 main performance cores)
+and 16 GB Memory. It streams unsigned 64-bit binary data from the SSD to
+RAM using 16 KB page-aligned buffers to match Apple's M-series virtual
+memory page size.
 
-Operates on pure binary streams of fixed-size 64-bit unsigned integers, exactly 8 bytes per number on disk. 
-Memory Ceiling: Caps active RAM utilization using a strict runtime budget.
-Page-Aligned Vectorized I/O: Bypasses standard tiny-byte streams by wrapping disk interactions in block sizes scaled to multiples of the 16 KB virtual memory page.
-Compute Awareness: Employs a parallel sort via Rayon, engineered to isolate workloads on high-throughput performance cores and avoid the straggler effects of hybrid efficiency cores.
+- **1 Chunk Sorting:** Reads 20 MB of data to RAM at a time and sorts in
+  parallel across CPU cores using Rayon.
 
-Phase 1: Chunking & Parallel In-Place Sort
-The input file is streamed sequentially in 16 KB blocks into a pre-allocated RAM buffer until the strict `MEMORY_LIMIT_BYTES` is met. The engine invokes Rayon to segment the chunk across a hardware-bounded thread pool (`THREAD_COUNT`), performs a parallel unstable sort in-place, and flushes the data to a deterministically numbered run file (`run_00000.bin`).
+- **2 Merging Runs:** Uses a Min-Heap to merge all sorted chunks back
+  into one sorted file.
 
-Phase 2: Streaming K-Way Merge
-All temporary run files are opened simultaneously, each backed by an isolated 16 KB page-aligned pre-fetch buffer. The engine streams elements on-demand through a binary Min-Heap priority queue to ensure the lowest element across all active runs is popped in O(NlogK) time and written to the final output file.
+The memory per chunk was limited to 20 MB to simulate physical memory
+limits and force streaming through the SSD.
 
+# Results 
+
+![Configuration Efficiency Heatmap](benchmark_plots/weighted_efficiency_heatmap.png)
+<figcaption><strong>Configuration Efficiency Heatmap:</strong> Compares
+thread count and fan-in factor to find the most efficient
+configuration.</figcaption>
+</figure>
+
+<figure id="fig:phase_breakdown" data-latex-placement="H">
+<img src="./distribution_phase_breakdown.png" />
+<figcaption><strong>Distribution’s Effect on Phase Runtime:</strong> On
+average, Phase 1 is very fast on ascending/descending (sorted/reverse
+sorted) data (<span class="math inline"> ∼ 75%</span> speedup compared
+to random distribution), but Phase 2 takes up most of the total runtime
+regardless of distribution.</figcaption>
+</figure>
+
+# Main Takeaways {#main-takeaways .unnumbered}
+
+## 1. Performance Ceiling (CPU Cores) {#performance-ceiling-cpu-cores .unnumbered}
+
+I looked into my Mac's hardware and noticed my CPU had 10 cores (4 main
+performance cores). I wanted to see if using all 10 cores would make
+sorting twice as fast. Going from 1 $\rightarrow$ 4 threads gave a
+relatively big speedup (14.6%) because it utilized the performance
+cores. However, the jump from 4 $\rightarrow$ 10 threads only gave a
+4.3% speedup. The performance cores likely end up waiting on the slower
+efficiency cores during Phase 1 when the CPU is sorting the arrays in
+RAM, so more cores had diminishing returns.
+
+## 2. The Distribution Matters (Phase 1 vs Phase 2) {#the-distribution-matters-phase-1-vs-phase-2 .unnumbered}
+
+Sorted/Reverse sorted data made Phase 1 run $\sim 75\%$ faster because
+of CPU branch prediction. Phase 2 runtime stayed relatively steady
+across all distribution types.
+
+**Best Configurations Overall**\
+
+   **Threads**   **Fan-In**   **Efficiency Score**
+  ------------- ------------ ----------------------
+       10            8               97.61%
+       10            16              98.48%
+        8            16              97.05%
+
+## 3. Peak Speed {#peak-speed .unnumbered}
+
+The fastest performance of the external sorting engine was 517 MB/s.
 
 ## Structure
 
