@@ -18,19 +18,17 @@ limits and force streaming through the SSD.
 # Results 
 
 ![Configuration Efficiency Heatmap](benchmark_plots/weighted_efficiency_heatmap.png)
-<figcaption><strong>Configuration Efficiency Heatmap:</strong> Compares
+Configuration Efficiency Heatmap: compares
 thread count and fan-in factor to find the most efficient
-configuration.</figcaption>
-</figure>
+configuration.
 
-<figure id="fig:phase_breakdown" data-latex-placement="H">
-<img src="./distribution_phase_breakdown.png" />
-<figcaption><strong>Distribution’s Effect on Phase Runtime:</strong> On
+![Configuration Efficiency Heatmap](benchmark_plots/distribution_vs_time_total.png)
+
+Distribution’s Effect on Phase Runtime: On
 average, Phase 1 is very fast on ascending/descending (sorted/reverse
-sorted) data (<span class="math inline"> ∼ 75%</span> speedup compared
+sorted) data ∼ 75%</span> speedup compared
 to random distribution), but Phase 2 takes up most of the total runtime
-regardless of distribution.</figcaption>
-</figure>
+regardless of distribution.
 
 # Main Takeaways {#main-takeaways .unnumbered}
 
@@ -51,7 +49,7 @@ Sorted/Reverse sorted data made Phase 1 run $\sim 75\%$ faster because
 of CPU branch prediction. Phase 2 runtime stayed relatively steady
 across all distribution types.
 
-**Best Configurations Overall**\
+**Best Configurations Overall**
 
    **Threads**   **Fan-In**   **Efficiency Score**
   ------------- ------------ ----------------------
