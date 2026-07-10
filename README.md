@@ -22,7 +22,7 @@ Configuration Efficiency Heatmap: compares
 thread count and fan-in factor to find the most efficient
 configuration.
 
-![Configuration Efficiency Heatmap](benchmark_plots/distribution_vs_time_total.png)
+![Configuration Efficiency Heatmap](benchmark_plots/distribution_phase_breakdown.png)
 
 Distribution’s Effect on Phase Runtime: On
 average, Phase 1 is very fast on ascending/descending (sorted/reverse
